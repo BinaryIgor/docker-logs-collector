@@ -13,6 +13,7 @@ LOG = logging.getLogger(__file__)
 
 ID_FIELD = "id"
 NAME_FIELD = "name"
+INSTANCE_NAME_LABEL = environ.get("INSTANCE_NAME_LABEL", "")
 
 machine_name = environ.get("MACHINE_NAME", "virtuocrat")
 
@@ -24,6 +25,41 @@ if logs_target_headers:
 collection_interval = int(environ.get("COLLECTION_INTERVAL", 10))
 LAST_DATA_READ_AT_FILE_PATH = environ.get("LAST_DATA_READ_AT_FILE",
                                           "/tmp/docker-logs-collector-last-data-read-at.txt")
+
+
+class DockerContainers:
+    """
+    Wrapper class for containers states.
+    We need previous_containers field to make sure that we collect logs from containers that died after,
+    but before the next logs collection.
+    """
+
+    def __init__(self, docker_client):
+        self.previous_containers = []
+        self.client = docker_client
+
+    def get(self):
+        def instance_name_from_label(container):
+            labels = container['Labels']
+            i_name = labels.get(INSTANCE_NAME_LABEL, None)
+            if not i_name:
+                i_name = container["Names"][0].replace("/", "")
+                LOG.info(f"INSTANCE_NAME_LABEL is not set, using first name {i_name} as name")
+            return i_name
+
+        fetched = [{ID_FIELD: c['Id'], NAME_FIELD: instance_name_from_label(c)}
+                   for c in docker_client.containers()]
+
+        all_containers = []
+        all_containers.extend(fetched)
+
+        for pc in self.previous_containers:
+            if pc not in all_containers:
+                all_containers.append(pc)
+
+        self.previous_containers = fetched
+
+        return all_containers
 
 
 def connected_docker_client_retrying():
@@ -66,12 +102,10 @@ def current_timestamp_millis():
 
 
 docker_client = connected_docker_client_retrying()
+docker_containers = DockerContainers(docker_client)
 
-running_containers = docker_client.containers()
-
-# for c in running_containers:
-#     print(c)
-#     c_id = c['Id']
-#     logs = docker_client.logs(c_id, since=current_timestamp() - 10_000, until=current_timestamp(), stream=False).decode(
-#         "utf-8")
-#     print(logs)
+for c in docker_containers.get():
+    print(c)
+    logs = docker_client.logs(c[NAME_FIELD], since=current_timestamp() - 300, until=current_timestamp(), stream=False).decode(
+        "utf-8")
+    print(logs)
