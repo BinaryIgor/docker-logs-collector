@@ -228,7 +228,7 @@ def send_logs_if_present(c_logs):
             LOG.info(f"Sending logs of {len(c_logs)} containers...")
 
             logs_object = {
-                'machine': MACHINE_NAME,
+                'source': MACHINE_NAME,
                 'logs': c_logs
             }
 
