@@ -283,8 +283,6 @@ def containers_logs(containers, containers_last_log_checks):
                 'log': c_log
             })
             print()
-            LOG.info(f"LOG...{c_log}")
-            print()
 
         LOG.info(f"{c_name}:{c_id} container logs checked")
 
