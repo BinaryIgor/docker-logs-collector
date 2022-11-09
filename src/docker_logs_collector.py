@@ -19,12 +19,11 @@ INSTANCE_NAME_LABEL = environ.get("INSTANCE_NAME_LABEL", "")
 
 MACHINE_NAME = environ.get("MACHINE_NAME", "virtuocrat")
 
-LOGS_TARGET_URL = environ.get('LOGS_TARGET_URL', "http://localhost:5555")
+CONSOLE_LOGS_TARGET = "CONSOLE_LOGS_TARGET"
+LOGS_TARGET_URL = environ.get('LOGS_TARGET_URL', CONSOLE_LOGS_TARGET)
 LOGS_TARGET_HEADERS = environ.get("LOGS_TARGET_HEADERS", {})
 if LOGS_TARGET_HEADERS:
     LOGS_TARGET_HEADERS = {h.split("=")[0].strip(): h.split("=")[1].strip() for h in LOGS_TARGET_HEADERS.split(",")}
-
-CONSOLE_LOGS_TARGET = bool(environ.get("CONSOLE_LOGS_TARGET", False))
 
 COLLECTION_INTERVAL = int(environ.get("COLLECTION_INTERVAL", 10))
 LAST_DATA_READ_AT_FILE_PATH = environ.get("LAST_DATA_READ_AT_FILE",
@@ -233,7 +232,7 @@ def send_logs_if_present(c_logs):
                 'logs': c_logs
             }
 
-            if CONSOLE_LOGS_TARGET:
+            if LOGS_TARGET_URL == CONSOLE_LOGS_TARGET:
                 LOG.info("Console logs target...")
                 print(data_object_formatted(logs_object))
                 print()
