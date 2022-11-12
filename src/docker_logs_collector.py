@@ -17,7 +17,7 @@ ID_FIELD = "id"
 NAME_FIELD = "name"
 INSTANCE_NAME_LABEL = environ.get("INSTANCE_NAME_LABEL", "")
 
-MACHINE_NAME = environ.get("MACHINE_NAME", "virtuocrat")
+MACHINE_NAME = environ.get("MACHINE_NAME", "anonymous-machine")
 
 CONSOLE_LOGS_TARGET = "CONSOLE_LOGS_TARGET"
 LOGS_TARGET_URL = environ.get('LOGS_TARGET_URL', CONSOLE_LOGS_TARGET)
@@ -49,7 +49,6 @@ class DockerContainers:
             i_name = labels.get(INSTANCE_NAME_LABEL, None)
             if not i_name:
                 i_name = container["Names"][0].replace("/", "")
-                LOG.info(f"INSTANCE_NAME_LABEL is not set, using first name {i_name} as name")
             return i_name
 
         fetched = [{ID_FIELD: c['Id'], NAME_FIELD: instance_name_from_label(c)}
@@ -122,14 +121,6 @@ def current_timestamp_millis():
 
 
 DOCKER_CONTAINERS = DockerContainers(connected_docker_client_retrying())
-
-
-# for c in docker_containers.get():
-#     print(c)
-#     logs = docker_containers.client.logs(c[NAME_FIELD], since=current_timestamp() - 300, until=current_timestamp(),
-#                               stream=False).decode(
-#         "utf-8")
-#     print(logs)
 
 
 def keep_collecting_and_sending():
@@ -249,8 +240,13 @@ def send_logs_if_present(c_logs):
 def send_logs(containers_logs, retries=3):
     for i in range(1 + retries):
         try:
-            r = requests.post(LOGS_TARGET_URL, json=containers_logs)
+            if LOGS_TARGET_HEADERS:
+                r = requests.post(LOGS_TARGET_URL, json=containers_logs, headers=LOGS_TARGET_HEADERS)
+            else:
+                r = requests.post(LOGS_TARGET_URL, json=containers_logs)
+
             r.raise_for_status()
+
             return
         except Exception:
             if i < retries:
@@ -276,10 +272,10 @@ def containers_logs(containers, containers_last_log_checks):
 
         if c_log is not None:
             c_logs.append({
-                'container_id': c_id,
-                'container_name': c_name,
-                'from': last_logs_check,
-                'to': containers_last_log_checks[c_id],
+                'containerId': c_id,
+                'containerName': c_name,
+                'fromTimestamp': last_logs_check,
+                'toTimestamp': containers_last_log_checks[c_id],
                 'log': c_log
             })
             print()
